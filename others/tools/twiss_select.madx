@@ -1,0 +1,59 @@
+! ~/mad/tools/twiss_select.madx
+
+! set,format="-18s","11.5g";  ! my standard compact format
+! set,format="-20s","13.7g";  ! my standard compact format  --  2 digits more useful for exact tune matching
+  set,format="-20s","21.15g"; ! full precision
+
+if( twiss_select_all==1 )
+{
+  twiss_select_magn:=1;
+  twiss_select_aper:=1;
+  twiss_select_coor:=1;
+  twiss_select_rf  :=1;
+  twiss_select_Wfun:=1;
+  twiss_select_rmat:=1;
+}
+
+if( twiss_select_MDISim==1 )
+{
+  twiss_select_magn:=1;
+  twiss_select_aper:=1;
+  twiss_select_coor:=1;
+  twiss_select_rf  :=1;
+}
+
+select, flag = twiss, clear;
+
+select, flag=twiss, column=name,keyword,s,betx,bety,alfx,alfy,dx,dpx,mux,muy;   ! name and basic twiss
+
+if( twiss_select_magn == 1 )
+{
+  select, flag=twiss, column=l,angle,k1l,k2l;                                   ! basic magnet properties relevant for bends and quads
+}
+
+if( twiss_select_aper == 1 )
+{
+  select, flag=twiss, column=apertype,aper_1,aper_2,aper_3,aper_4;              ! aperture
+}
+
+if( twiss_select_coor==1 )
+{
+  select, flag=twiss, column=x,y,dy,px,py,t,pt;                                 ! coordinates, tracking
+}
+
+if( twiss_select_rf==1 )
+{
+  select, flag=twiss, column=volt, lag, freq, harmon;                           ! RF
+}
+
+if( twiss_select_Wfun==1 )
+{
+  select, flag=twiss, column=Wx,Wy;                                             ! Montague chromatic amplitude functions
+}
+
+if( twiss_select_rmat==1 )
+{
+  select, flag=twiss, column=re11,re12,re13,re14,re15,re16,re21,re22,re23,re24,re25,re26,re31,re32,re33,re34,re35,re36,re41,re42,re43,re44,re45,re46,re51,re52,re53,re54,re55,re56,re61,re62,re63,re64,re65,re66; ! 6x6 transfer matrix
+}
+
+! twiss,chrom,rmatrix,sequence=SeqName,file="FileName.tfs"; ! twiss call with chrom to get synrad integrals, and rmatrix
