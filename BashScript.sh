@@ -1,15 +1,17 @@
 # BASH SCRIPT TO RUN MDISIM - by Francesco Collamati - 05-17-2016
+# Tested with MADX 5.02.08 (should be compatible with 5.02.05 and later due to collimator)
 :'
-    Prerequisites: Add to your .bashrc/.bash_profile the lines:
+Prerequisites: Add to your .bashrc/.bash_profile the lines:
     export MDISim_dir=[pathToMDISimdir]
     (e.g.: export MDISim_dir=/Users/$LOGNAME/GIT/MDISim/MDISim_dir/)
     source $MDISim_dir/setup.sh         #Runs MDISim initialization
     export MADX_dir=/Applications/      #Point to MADX installation dir
 
 Files organization (starting from $MDISim_dir):
-    - Optics files in Optics/FILENAME.madx
-    - Geometry files in Geom/FILENAME_LR.root
-    - Output files are creted in Output
+    - MAD optics files in others/Optics/FILENAME.madx
+    - Seq optics files in others/Seq/FILENAME.madx
+    - Geometry files in others/Geom/FILENAME_LR.root
+    - Output files are creted in others/Output
 '
 
 #!/bin/bash
