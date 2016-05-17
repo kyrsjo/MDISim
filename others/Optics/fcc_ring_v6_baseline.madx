@@ -1,0 +1,200 @@
+! ~/mad/fcc_hh/fcc_ring_v4_baseline.madx      H. Burkhardt  20/05/2015
+!
+! based on fcc_ring_v4_roundracetrack_lhc_100.12_14.3_000.madx   /afs/cern.ch/work/m/martinr/public/job.FCC_sample.madx
+! using now own version   ~/mad/fcc_hh/fcc_ring_v4_baseline_b1.seq
+!
+!
+! export FCCHHVERSION=LATTICE_V4/Baseline ; cd /tmp/$LOGNAME/; rm  -f *; echo 'title,"'$FCCHHVERSION' ' > tit.txt ; time madx ~/mad/fcc_hh/fcc_ring_v4_baseline.madx 2>&1 | tee fcc_hh_ring_v4.out ; open fcc_hh_ring_v4.out
+!
+
+!--- switches for this run ---
+Use_afs=0;
+SplitPS=1;              ! set to 1 to split in single ps which allows conversion for Illustrator
+AddBpipeApertures=0;    ! normally 0,   set to 1 in first iteration to make a new sequence with beam pipe apertures
+
+if(Use_afs==1)
+{
+  System,"ln -fns /afs/cern.ch/eng/fcc/hh/$FCCHHVERSION db"; ! standard afs files
+}
+else
+{
+  System,"ln -fns ~/mad/optics/fcc/hh/$FCCHHVERSION db";
+}
+System,"ln -fns $MDISim_dir/../others/ OtherFolder";
+
+
+Option, -echo,-warn,-info;
+
+if(SplitPS==1)
+{
+  setplot, post=2;  // eps, many files  01, 02 to filename  (madx01.eps - madx14.eps), allows preparation from illustrator
+  !old System,"ln -sf ~/mad/Combine_ps.madx .";
+}
+else
+{ 
+  setplot, post=1, ascale=0.8;  // single ps, scale character size down to allow for longer titles
+}
+setplot,xsize=28.0,ysize=19.0,rscale=1.2; !hbu defaults are: setplot,font=1,lwidth=5.,xsize=27.,ysize=19.,ascale=1.5;lscale=2.,sscale=2.,rscale=1.8,post=1,interpolate=false;  use rscale=1.5 to get smaller title
+
+! call,file="fcc_ring_v4_roundracetrack_lhc_100.12_14.3_000.madx"; ! does already twiss and survey,  calls   IR_FCC_hh_v0.2.madx, IRCOLL2.madx    has some apertures defined
+
+! similar to /afs/cern.ch/work/m/martinr/public/job.FCC_sample.madx
+beam, particle=proton, energy=50000.0, npart=1.e11, kbunch=10600, exn=2.2e-06, eyn=2.2e-06; // CERN-ACC-2015-13  25 ns parameters
+
+if(AddBpipeApertures==1)
+{
+  !------------- hbu extra beam pipe and TAS apertures similar to IRA_FCC_hh_v0.3_beampipe_TAS_apertures.madx  --- here to only once to modify   fcc_ring_v4_baseline_b1.seq
+  ! ---- here first 36m just drift space. Insert markers for beam pipe aperture
+  ! ---- some gymnastics to avoid MAD-X negative drift length -- here flatten not enough
+  call,file="OtherFolder/fcc_hh/fcc_ring_v4_baseline_b1_temp1.seq"; !my modified version to avoid negative aperture at mq.7rf.h1
+  Option,  echo, warn, info;
+  use, sequence=fcc_ring;
+  real const rBeamPipe := 0.02;        ! at IP and up to 8 m
+  real const dTAS := 31;               ! TAS at this distance from IP
+  real const rTAS := rBeamPipe;
+  real const lTAS := 3;                ! 3 meter long TAS
+  real const rMaXCone  := 0.0025*dTAS; ! 2.5mrad cone up to TAS
+
+  ip,  aperture={rbeampipe};
+  ipa, aperture={rbeampipe};
+  fccpip1.l :  marker, apertype=circle, aperture={rbeampipe};
+  fccpip1.r :  marker, apertype=circle, aperture={rbeampipe};
+  fccpip2.l :  marker, apertype=circle, aperture={rmaxcone};
+  fccpip2.r :  marker, apertype=circle, aperture={rmaxcone};
+  tas.l     : collimator, l := lTAS, apertype=circle, aperture={rbeampipe};
+  tas.r     : collimator, l := lTAS, apertype=circle, aperture={rbeampipe};
+  seqend:=97314.56227; // use length
+  seqedit, sequence=fcc_ring;
+    flatten; ! to avoid negative drift length -- here not enough
+    install, element = fccpip1.l, at =  -8 + seqend;
+    install, element = fccpip1.r, at =  +8.;  from= ipa;
+    install, element = fccpip2.l, at = -dTAS + seqend;
+    install, element = fccpip2.r, at = +dTAS, from= ipa;
+    install, element = tas.l    , at = -(dTAS+lTAS/2) + seqend;
+    install, element = tas.r    , at = +(dTAS+lTAS/2),  from= ipa;
+  endedit;
+  save,sequence=fcc_ring,file="fcc_ring_v6_baseline_b1.seq"; // cp -pf fcc_ring_v4_baseline_b1.seq  ~/mad/fcc_hh/
+  !------------- hbu end of insert
+  exit;
+}
+else
+{
+!  call,file="OtherFolder/fcc_hh/fcc_ring_v4_baseline_b1.seq"; !my modified version to avoid negative aperture at mq.7rf.h1
+!  call,file="/Users/francesco/mad/fcc_hh/LATTICE_V6/fcc_hh_v6_45/fcc_hh_v6_45_000.seq1"; !my modified version to avoid negative aperture at mq.7rf.h1
+  call,file="OtherFolder/Seq/fcc_hh_v6_45_000.seq1"; !my modified version to avoid negative aperture at mq.7rf.h1
+
+}
+
+! in twiss/survey MDISim  format :
+use,sequence=fcc_ring;
+twiss_select_MDISim:=1; call,file="OtherFolder/tools/twiss_select.madx";
+twiss,rmatrix,chrom, file="fcc_ring_v6_baseline_b1_twiss.tfs";
+call,file="OtherFolder/tools/survey_select.madx";
+survey, table=survey, x0=0,y0=0,z0=0,theta0=0,phi0=0,psi0=0,file="fcc_ring_v6_baseline_b1_survey.tfs",sequence=fcc_ring;
+
+!--- now get beam2, try reflect
+seqedit, sequence=fcc_ring;
+  cycle,start=FCC_RINGIPA_P_; ! start at end for reflect
+  reflect;
+endedit;
+save,sequence=fcc_ring,file="fcc_ring_v6_baseline_b2.seq";
+use, sequence=fcc_ring;
+twiss,rmatrix,chrom, file="fcc_ring_v6_baseline_b2_twiss.tfs";
+survey, table=survey, x0=0,y0=0,z0=0,theta0=0,phi0=0,psi0=0,file="fcc_ring_v6_baseline_b2_survey.tfs",sequence=fcc_ring;
+
+
+
+stop; !------------------------------------------
+
+
+
+cp -pf fcc_ring_v4_baseline_b*.tfs ~/mad/fcc_hh/output/
+
+cd
+cd MDISim_dir/
+source setup.sh
+
+
+-- 2d plot survey files   on my ntuple level
+cd /tmp/$LOGNAME ; rm -f *.pdf *.eps ; time root
+.x /Users/manuela/MDISim_dir/MDISim_init.C
+unsigned int verbose=1; bool square=false;
+const char* Fname_b1_s="fcc_ring_v4_baseline_b1_survey.tfs";      // ~/mad/optics/fcc/hh/LATTICE_V4/Baseline/fcc_ring_v4_roundracetrack_lhc_100.12_14.3_000.madx
+// const char* Fname_b1_s="~/mad/fcc_hh/output/fcc_ring_v4_baseline_survey.tfs";      // ~/mad/optics/fcc/hh/LATTICE_V4/Baseline/fcc_ring_v4_roundracetrack_lhc_100.12_14.3_000.madx
+Ntuple nt_b1(Fname_b1_s); if(verbose) nt_b1.PrintSummary();
+Plot_x_y(nt_b1,"Z","X",verbose,square);
+// zoom IP with fixed frame
+TH2F* hpx = new TH2F("","",10,-800,800, 10,-0.5,0.3); My_Labels_TH2F(hpx,"Z [m]","X [m]"); hpx->Draw(); hpx->SetStats(kFALSE);  // 10,-1000,1000, 10,-1,1
+Plot_x_y(nt_b1,"Z","X",verbose,square=false,"_zoomed",true);
+const char* Fname_b2_s="fcc_ring_v4_baseline_b2_survey.tfs";
+Ntuple nt_b2(Fname_b2_s); if(verbose) nt_b2.PrintSummary();
+Plot_x_y(nt_b2,"Z","X",verbose,square=false,"_zoomed",true);
+.q
+find . -name "*.eps" -exec pstopdf {} \;
+open *.pdf
+
+
+make geometry file
+
+proj=MDISim ; targ=MyNtuple2Geom ; cmakeUnix $proj ;   cd /tmp/$LOGNAME/$proj ; make $targ -j9 ; mv $targ /tmp/$LOGNAME/Release/. ; cd /tmp/$LOGNAME/
+time /tmp/$LOGNAME/Release/MyNtuple2Geom -acsV -- fcc_ring_v4_baseline_b2 IP -100 300   1 632 ~/mad/fcc_hh/output/fcc_ring_v4_baseline_b2_twiss.tfs ~/mad/fcc_hh/output/fcc_ring_v4_baseline_b2_survey.tfs | tee /tmp/$LOGNAME/MDISim.out ; open /tmp/$LOGNAME/MDISim.out
+time /tmp/$LOGNAME/Release/MyNtuple2Geom -acsV -- fcc_ring_v4_baseline_LR IP -700 700 100 600 ~/mad/fcc_hh/output/fcc_ring_v4_baseline_b1_twiss.tfs ~/mad/fcc_hh/output/fcc_ring_v4_baseline_b1_survey.tfs 632 ~/mad/fcc_hh/output/fcc_ring_v4_baseline_b2_twiss.tfs ~/mad/fcc_hh/output/fcc_ring_v4_baseline_b2_survey.tfs | tee /tmp/$LOGNAME/MDISim.out ; open /tmp/$LOGNAME/MDISim.out
+-- beam2 not yet existing seems, could simulate by z -->  -z           also no cavity defined
+
+
+--- save the root geometry       ls -l /tmp/$LOGNAME/fcc_ring_v4_baseline*.root ; ls -l  ~/www/Geom/fcc*
+cp -pf /tmp/$LOGNAME/fcc_ring_v4_baseline* ~/www/Geom/  ; rm -f ~/www/"Geom/"*.seq
+
+-- run Fields_from_tfs,  see  main_Fields_from_tfs.C  before geant4
+
+ls -lh ~/www/Geom/fcc_ring_v4_baseline*
+
+--- look directly at geometries generated
+cd /tmp/$LOGNAME ; time root
+.L ~/c/MyRoot/init.C
+MDISim_init();
+unsigned int verbose;TEveElement* el;bool AllowForProjections;
+   el=StartEveWithGeomDisplay("fcc_ring_v4_baseline_b2.root",AllowForProjections=false,verbose=0); // local
+// el=StartEveWithGeomDisplay("fcc_ring_v4_baseline_LR.root",AllowForProjections=false,verbose=0); // local
+// el=StartEveWithGeomDisplay("fcc_ring_v4_baseline_LR.root",AllowForProjections=false,verbose=0);
+   el=StartEveWithGeomDisplay(ResolveHome("~/www/Geom/fcc_ring_v4_baseline_LR.root"),AllowForProjections=false,verbose=2);
+
+
+-- b2 with SR cone radiating towards IP
+cd /tmp/$LOGNAME ; time root
+.x /Users/manuela/MDISim_dir/MDISim_init.C
+//.L ~/c/MyRoot/init.C
+//MDISim_init();
+unsigned int verbose=1;TEveElement* el;bool AllowForProjections;double EmitRatio;
+string MachName="fcc_ring_v4_baseline";
+string Fname_b2_o="~/mad/fcc_hh/output/"+MachName+"_b2_twiss.tfs";
+string Fname_b2_s="~/mad/fcc_hh/output/"+MachName+"_b2_survey.tfs";
+Ntuple nt_b2(ReadAndMerge(Fname_b2_o.c_str(),Fname_b2_s.c_str(),verbose)); if(verbose) nt_b2.PrintSummary();
+Beam b2(Fname_b2_o.c_str(),verbose=2);
+b2.RFHV_from_twiss(nt_b2 );
+if(b2.RFHV==0) b2.SetRF( 1., 201000 ); // if not set, give here
+b2.EmitFromSynrad(EmitRatio=1);
+b2.Print();
+double nsig=1; // quad radiation from sawtooth + beam size.  0 is sawtooth only
+double emitxN=2.2e-6,emityN=2.2e-6; // normalized emittance
+Lorentz Part=b2.Get_Part();
+double emitx=Part.Emit(emitxN);
+double emity=Part.Emit(emityN);
+cout << setprecision(6) << "emitxN=" << 1.e6*emitxN << " mum  emitx=" << 1.e9*emitx << " nm" << '\n';
+cout << setprecision(6) << "emityN=" << 1.e6*emityN << " mum  emity=" << 1.e9*emity << " nm" << '\n';
+CalcBeamSizeDivergence(nt_b2,emitx,emity,verbose); // calculate beam sizes and divergences and add to ntuple
+CalcSynrad(nt_b2,b2,verbose,nsig);
+
+//el=StartEveWithGeomDisplay(ResolveHome("~/www/Geom/fcc_ring_v4_baseline_b2.root"),AllowForProjections=false,verbose); // b2, good to see SR from dogleg   Scale_xy=1     careful in zoom
+// el=StartEveWithGeomDisplay(ResolveHome("~/www/Geom/fcc_ring_v4_baseline_LR.root"),AllowForProjections=false,verbose); // b1,b2, IR and start of arcs, works ok   Scale_xy=100
+ el=StartEveWithGeomDisplay("http://hbu.web.cern.ch/hbu/Geom/fcc_ring_v4_baseline_LR.root",AllowForProjections=false,verbose); // ok, scale x_y by 100
+double zmin=-100,zmax=500,Scale_xy=100;
+EveSingleTrackDisplay(nt_b2,zmin,zmax,kGreen,Scale_xy,verbose); // plot design path
+bool goto_CM_units=true; // normally true
+Plot_Bend_SR_Cones(nt_b2,b2,zmin,zmax,Scale_xy,verbose,goto_CM_units,-1); // myGraph3D.C
+if(AllowForProjections) gMultiView=ShowProjections(el,verbose); // projections filled, -- zoom in/out, look at details, RhoZ view strange, meaning of sign of R ?
+if(AllowForProjections) el=gEve->GetCurrentEvent(); //gets track visible in projection
+if(AllowForProjections) { gMultiView->DestroyEventRPhi(); gMultiView->ImportEventRPhi(el); }
+if(AllowForProjections) { gMultiView->DestroyEventRhoZ(); gMultiView->ImportEventRhoZ(el); }
+if(AllowForProjections) gEve->Redraw3D(kFALSE, kTRUE);
+

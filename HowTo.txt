@@ -1,0 +1,131 @@
+// HowToUse MDISim - 05-12-2016 - Francesco Collamati
+
+###################### SET THE ENVIRONMENT ###########################
+######################################################################
+Add to your .bashrc/.bash_profile the line:
+export MDISim_dir=[pathToMDISimdir]/
+source $MDISim_dir/setup.sh 
+e.g.:
+export MDISim_dir=/Users/$LOGNAME/GIT/MDISim/MDISim_dir/
+source $MDISim_dir/setup.sh
+
+mkdir /tmp/$LOGNAME/
+
+
+######################################################################
+
+
+###################### RUN MADX                   ###########################
+######################################################################
+cd $MDISim_dir
+export FCCHHVERSION=LATTICE_V4/Baseline ; 
+cd /tmp/$LOGNAME/; rm  -f /tmp/$LOGNAME/*; 
+echo 'title,"'$FCCHHVERSION' ' > tit.txt ; 
+time madx $MDISim_dir/../others/fcc_ring_v4_baseline.madx 2>&1 | tee fcc_hh_ring_v4.out ; 
+#open fcc_hh_ring_v4.out
+
+cp -pf fcc_ring*.tfs  $MDISim_dir/../others/output/
+
+
+######################################################################
+
+
+###################### CREATE 2D PLOTS               ###########################
+######################################################################
+
+cd /tmp/$LOGNAME ; rm -f /tmp/$LOGNAME*.pdf /tmp/$LOGNAME*.eps ; time root
+.x $MDISim_dir/MDISim_init.C
+
+unsigned int verbose=1; bool square=true; //setting verbose level
+
+//#### filename of the tfs to open and plot for Beam 1
+const char* Fname_b1_s="fcc_ring_v4_baseline_b1_survey.tfs";    
+Ntuple nt_b1(Fname_b1_s);  //creates ntuple object
+if(verbose) nt_b1.PrintSummary();
+Plot_x_y(nt_b1,"Z","X",verbose,square); //Plots xy plane to check it is a circle..
+TH2F* hpx = new TH2F("","",10,-1000,1000, 10,-1,1); My_Labels_TH2F(hpx,"Z [m]","X [m]"); hpx->Draw(); hpx->SetStats(kFALSE);
+Plot_x_y(nt_b1,"Z","X",verbose,square=false,"_zoomed",true); //Plots beam1
+
+//#### filename of the tfs to open and plot for Beam 2
+const char* Fname_b2_s="fcc_ring_v4_baseline_b2_survey.tfs";
+Ntuple nt_b2(Fname_b2_s);
+if(verbose) nt_b2.PrintSummary();
+Plot_x_y(nt_b2,"Z","X",verbose,square=false,"_zoomed",true);//Plots beam1
+
+.q
+find . -name "*.eps" -exec pstopdf {} \;
+open *.pdf
+cp -pf *.pdf  $MDISim_dir/../others/output/
+
+######################################################################
+
+
+###################### CREATE 3D PLOTS               ###########################
+######################################################################
+cd $MDISim_dir/../others/output; time root 
+.x $MDISim_dir/MDISim_init.C
+
+unsigned int verbose=1; TEveElement* el; bool AllowForProjections; //some useful variables
+string MachName="fcc_ring_v4_baseline"; //common part of filename
+
+//The path must be changed by hand
+//string Fname_b1_o="/Users/francesco/GIT/MDISim/others/output/"+MachName+"_b1_twiss.tfs"; 
+//string Fname_b1_s="/Users/francesco/GIT/MDISim/others/output/"+MachName+"_b1_survey.tfs"; 
+
+string Fname_b1_o=MachName+"_b1_twiss.tfs"; 
+string Fname_b1_s=MachName+"_b1_survey.tfs"; 
+
+Ntuple nt_b1(ReadAndMerge(Fname_b1_o.c_str(),Fname_b1_s.c_str(),verbose)); if(verbose) nt_b1.PrintSummary();  //creates and prints the ntuple object merging twiss and survey
+Beam b1(Fname_b1_o.c_str(),verbose);  //creates the beam reading parameters fro twiss (cfr Twiss_util.C)
+b1.RFHV_from_twiss(nt_b1);  // reads RF from twiss and looks for harmonic (!?)
+if(b1.RFHV==0) b1.SetRF( 1., 201000 ); // if RF not already set from MADX (e.g. for protons) here it is set
+b1.Get_Part().PrintLorentz(cout);
+b1.Print();
+double nsig=1; // numbero of sigma at which calculate synrad for quads (0 for sawtooth only)only
+double emitxN=2.2e-6,emityN=2.2e-6; // normalized emittances set by hand for protons
+Lorentz Part=b1.Get_Part();
+double emitx=Part.Emit(emitxN);
+double emity=Part.Emit(emityN);
+cout << setprecision(6) << "emitxN=" << 1.e6*emitxN << " mum  emitx=" << 1.e9*emitx << " nm" << '\n';
+cout << setprecision(6) << "emityN=" << 1.e6*emityN << " mum  emity=" << 1.e9*emity << " nm" << '\n';
+
+CalcBeamSizeDivergence(nt_b1,emitx,emity,0,verbose) //calculate size and divergence of beam and adds them to ntuple
+CalcSynradFr(nt_b1,b1,verbose=3,nsig); //calculates syndrad (Ecrit and NGamma) for dipoles and quadrupoles (calling PrintBends and PrintQuads)
+
+//el=StartEveWithGeomDisplay(ResolveHome("../Geom/fcc_hh_v4_45_LR.root"),AllowForProjections=false,verbose); // setup EventDisplay b1,b2, IR and start of arcs
+el=StartEveWithGeomDisplay(ResolveHome("../Geom/fcc_ring_v4_baseline_LR.root"),AllowForProjections=false,verbose); // setup EventDisplay b1,b2, IR and start of arcs
+
+double zmin=-100,zmax=500,Scale_xy=100; //some graphin settings
+EveSingleTrackDisplay(nt_b1,zmin,zmax,kGreen,Scale_xy,verbose); // plot design path
+bool goto_CM_units=true; // normally true
+Plot_Bend_SR_Cones(nt_b1,b1,zmin,zmax,Scale_xy,verbose,goto_CM_units,-1); // myGraph3D.C
+
+
+
+
+
+
+
+######################################################################
+
+
+
+
+#!/bin/bash
+for i in {1..21}
+do
+  varA="SimInsuppamentoMiniSiPmAir-$i"
+  varB="001_Out"
+    varC=$varA$varB
+    echo $varC
+    root -b -l <<EOF
+    .L MyAnaFluka.C
+    m=new MyAnaFluka("$varC");
+m.Loop();
+.q;
+EOF
+done
+
+
+
+// mymacro("fcc_ring_v4_baseline_b1_twiss.tfs","fcc_ring_v4_baseline_b1_survey.tfs","/Users/francesco/GIT/MDISim/MDISim_dir/../others/Geom/fcc_ring_v4_baseline_LR.root")
